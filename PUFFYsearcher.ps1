@@ -183,14 +183,13 @@ $Button.Add_Click({
 		}
 	}
 	
-	$Global:searchlist = $Global:searchlist | Sort-Object Name
 	$Global:searchlist | ForEach-Object {
 		Write-Progress -Activity "progress" -Status "File $cpt of $($Global:searchlist.Count)" -PercentComplete (($cpt / $Global:searchlist.Count) * 100)  
 		$prct = ($cpt / $($Global:searchlist.Count)) * 100
 		$progress.text = "$cpt / $($Global:searchlist.Count) - $prct %"
 		$cpt++
 	}
-	
+	$Global:searchlist = $Global:searchlist | Sort-Object Name
 	ForEach($result in $Global:searchlist){
 		$LinkLabel = New-Object System.Windows.Forms.LinkLabel
 		$LinkLabel.Location = New-Object System.Drawing.Size(10,($HeightLocation + $PixelsVertical))
