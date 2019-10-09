@@ -167,29 +167,72 @@ $Button.Add_Click({
 	Else {
 		$Wordlist = $textBox1.Text.split(" ")
 	}
-	
 
+	## -- Create The Progress-Bar
+	$Global:ObjForm = New-Object System.Windows.Forms.Form
+	$Global:ObjForm.Text = "Rendering links...Please wait"
+	$Global:ObjForm.Height = 100
+	$Global:ObjForm.Width = 500
+	$Global:ObjForm.BackColor = "White"
+
+	$Global:ObjForm.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedSingle
+	$Global:ObjForm.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
+
+	## -- Create The Label
+	$ObjLabel = New-Object System.Windows.Forms.Label
+	$ObjLabel.Text = "Starting. Please wait ... "
+	$ObjLabel.Left = 5
+	$ObjLabel.Top = 10
+	$ObjLabel.Width = 500 - 20
+	$ObjLabel.Height = 15
+	$ObjLabel.Font = "Tahoma"
+	## -- Add the label to the Form
+	$Global:ObjForm.Controls.Add($ObjLabel)
+
+	$PB = New-Object System.Windows.Forms.ProgressBar
+	$PB.Name = "PowerShellProgressBar"
+	$PB.Value = 0
+	$PB.Style="Continuous"
+
+	$System_Drawing_Size = New-Object System.Drawing.Size
+	$System_Drawing_Size.Width = 500 - 40
+	$System_Drawing_Size.Height = 20
+	$PB.Size = $System_Drawing_Size
+	$PB.Left = 5
+	$PB.Top = 40
+	$Global:ObjForm.Controls.Add($PB)
 	
 	#type of element to search
 	$Global:searchlist = @()
-	$cpt = 1
+	$removedpath=@("C:\Windows",$env:APPDATA,$env:LOCALAPPDATA)
 	
-	ForEach ($Pattern in $Wordlist) {
+	$cpttot = 0
+	$cptfnd = 0
+	$progresslimit = 200
+	#ForEach ($Pattern in $Wordlist) {
 		If ( $RadioButton1.Checked ) {
-			$Global:searchlist += gci -Path $path -recurse | where { ! $_.PSIsContainer } | Where{$_.Name -match $Pattern}
+			$Global:searchlist += gci -Path $path -recurse | %{$cpttot++;if(0 -eq $cpttot % 200){$progress.text = "$cptfnd matchs ($cpttot total)"; $progress.refresh()}; $_} | where { ! $_.PSIsContainer } | Where{$_.Name -match ($Wordlist -join '|' )} | %{$cptfnd++;$progress.text = "$cptfnd matchs ($cpttot total)"; $progress.refresh();$_}
+			$progress.text = "$cptfnd matchs ($cpttot total)";$progress.refresh()
 		}
 		Else{ 
-			$Global:searchlist += gci -Path $path -recurse | Where-Object { $_ | Select-String $Pattern -quiet}
+			$Global:searchlist += gci -Path $path -recurse | %{$cpttot++;if(0 -eq $cpttot % 200){$progress.text = "$cptfnd matchs ($cpttot total)"; $progress.refresh()}; $_} | Where-Object {$_ | Select-String ($Wordlist -join '|' ) -quiet} | %{$cptfnd++;$progress.text = "$cptfnd matchs ($cpttot total)"; $progress.refresh();$_}
+			$progress.text = "$cptfnd matchs ($cpttot total)";$progress.refresh()
 		}
+#	}
+
+	$Global:searchlist = $Global:searchlist | Sort-Object Name
+	
+	if ($cptfnd -ge $progresslimit)
+	{
+#		param($Global:ObjForm)
+		## -- Show the Progress-Bar and Start The PowerShell Script
+		$Global:ObjForm.Show() | Out-Null
+		$Global:ObjForm.Focus() | Out-NUll
+		$ObjLabel.Text = "Starting. Please wait ... "
+		$Global:ObjForm.Refresh()
 	}
 	
-	$Global:searchlist | ForEach-Object {
-		Write-Progress -Activity "progress" -Status "File $cpt of $($Global:searchlist.Count)" -PercentComplete (($cpt / $Global:searchlist.Count) * 100)  
-		$prct = ($cpt / $($Global:searchlist.Count)) * 100
-		$progress.text = "$cpt / $($Global:searchlist.Count) - $prct %"
-		$cpt++
-	}
-	$Global:searchlist = $Global:searchlist | Sort-Object Name
+	$Counter = 0
 	ForEach($result in $Global:searchlist){
 		$LinkLabel = New-Object System.Windows.Forms.LinkLabel
 		$LinkLabel.Location = New-Object System.Drawing.Size(10,($HeightLocation + $PixelsVertical))
@@ -203,7 +246,17 @@ $Button.Add_Click({
 
 		$main_form.Controls.Add($LinkLabel)
 		$PixelsVertical += 15
+		
+		$Counter++
+		if (0 -eq $Counter % 25 -And $cptfnd -ge $progresslimit)
+		{
+			[Int]$Percentage = ($Counter/$cptfnd)*100
+			$PB.Value = $Percentage
+#			$ObjLabel.Text = "Recursive Search: Writing Names of All Files Found Inside $Path"
+			$Global:ObjForm.Refresh()
+		}
 	}
+	$Global:ObjForm.Close()
 })
 
 $main_form.AutoScroll = $True 
